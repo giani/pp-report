@@ -1,1 +1,20 @@
-RCU~\cite{paulmck:TechReport}
+Parallel programming is already mainstream these days. There are a wide variety
+of mechanisms being used to provide synchronization and serialization.
+Operating systems are a popular example for utilizing various synchronization
+mechanims%Add citations here for spinlocks, mutexes and for RCU, with possibly links to the sourcse as opposed to publications for Linux/BSD/Solaris
+With scalability being extremely important for the Operating Systems,
+techniques have been proposed to reduce the overheads by utilizing lock-free
+techniques. Read Copy Update~\cite{paulmck:TechReport} is one such technique which is
+heavily used in the Linux Kernel. RCU has been described as a publish-subscribe
+technique.
+
+In its simplest form, readers do absolutely nothing when they enter or exit an
+RCU read critical section. On the other hand updaters synchronize with the use
+of one of the traditional mechanisms such as spin locks or mutexes while updating.
+Following an update, any new readers gets to access the updated version. However
+readers who came in before the update was `published` would still be guaranteed
+to the see the older version which is reclaimed only after all the pre-existing
+readers have gone away.
+
+RCU is becoming increasingly relevant today with a userspace implementation also
+being released and used.%cite urcu paper and the flocking using RCU paper
