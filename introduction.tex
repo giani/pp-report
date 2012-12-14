@@ -8,13 +8,27 @@ techniques. Read Copy Update~\cite{paulmck:TechReport} is one such technique whi
 heavily used in the Linux Kernel. RCU has been described as a publish-subscribe
 technique.
 
-In its simplest form, readers do absolutely nothing when they enter or exit an
-RCU read critical section. On the other hand updaters synchronize with the use
+In its simplest form, readers disable preemption when they enter the RCU read critical
+section and reenable premption while exiting the
+critical section. A sample implementation can be seen in Figure ~\ref{fig:rcusimpleread}.
+On the other hand updaters synchronize with the use
 of one of the traditional mechanisms such as spin locks or mutexes while updating.
 Following an update, any new readers gets to access the updated version. However
 readers who came in before the update was `published` would still be guaranteed
 to the see the older version which is reclaimed only after all the pre-existing
 readers have gone away.
 
+\begin{figure}[h]
+\centering
+\begin{lstlisting}
+#define rcu_read_lock	preempt_disable
+#define rcu_read_unlock	preempt_enable
+\end{lstlisting}
+\caption{A simple implementation of RCU read side primitives}\label{fig:rcusimpleread}
+\end{figure}
+
 RCU is becoming increasingly relevant today with a userspace implementation also
-being released and used.%cite urcu paper and the flocking using RCU paper
+being released and used~\cite{urcu}.%cite urcu paper and the flocking using RCU paper
+~\cite{goulet:thesis}
+
+
