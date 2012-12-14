@@ -59,3 +59,33 @@ have entered a critical section. Then in order to ensure that access is not
 interrupted, they use rcu\_dereference to get a reference. Finally all accesses
 to the shared data is through the use of p. RCU guarantees that the data structure
 will not be reclaimed till the reader announces the end of its critical section.
+
+There are two terms that need to be defined in the context of RCU in order to aid
+any discussion.
+\begin{itemize}
+\item{Quiescent State}: This is the state when a reader is not in an RCU critical state
+\item{Grace Period}: Any time period during which each thread has been observed in at least one quiescent state.
+\end{itemize}
+
+RCU has a list of well defined API. The most commonly used are
+\begin{itemize}
+\item{rcu\_read\_lock}: Used to announce the beginning of a critical section.
+\item{rcu\_read\_unlock}: Used to announce the end of a critical section.
+\item{rcu\_dereference}: Used to obtain a reference to shared data
+\item{rcu\_assign\_pointer}: Used to announce an update.
+\item{synchronize\_rcu}: Used to wait till a grace period has passed.
+\item{call\_rcu}: Used to queue up a callback that takes place at some future time.
+\end{itemize}
+
+
+Using RCU requires careful attention from the programmer. There are some rules
+and inherent assumptions while using RCU. For example, access to shared data
+should only happen with a reference which has been obtained with the use of
+rcu\_dereference. This call should also happen only after an RCU read critical
+section has announced. Any use of this reference obtained must be made before
+this critical section ends. If a new critical section has been announced a
+fresh reference must be obtained with the use of rcu\_dereference. A quiescent
+state (in some flavours of RCU) must only be announced once it has actually
+taken place. On the update side, an update should only take place with use
+of rcu\_assign\_pointer. There are many other similar rules that must be
+followed.
