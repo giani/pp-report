@@ -52,3 +52,59 @@ while using RCU. For the purposes of this report, we shall name two rules.
 
 We shall call the bugs of the type represented in figure~\ref{fig:rcuderefbug} as \emph{Rule 1 violations}
 and those in figure~\ref{fig:rcuusebug} as \emph{Rule 2 violations}.
+This project aims to detect and report bugs of these two types.
+
+Detecting these bugs is extremely challenging. Due to the nature of RCU implementation,
+bugs are subtle and at times hard to reproduce. Even though the references have been
+illegaly obtained, they might still be valid.
+
+In order to detect \emph{Rule 1 violations}, we must first identify data
+that has been protected by RCU. We must then be able to track every
+dereference to it. We must also be in a position to instrument
+every \emph{rcu\_dereference} call.
+
+For \emph{Rule 2 violations}, we must know when a dereference takes place.
+At that point in time, we need to be able to check if the reference has
+been obtained legally. If so, we must know if it has been obtained in
+the current critical section.
+
+In order to detect these issues, we use \emph{generations}. \emph{Generations}
+can be defined as an RCU critical section. A generation has the following
+properties
+
+\begin{itemize}
+
+\item \emph{Generations} are per-thread
+\item A new \emph{generation} starts when \emph{rcu\_read\_lock} is called
+\item A \emph{generation} ends when \emph{rcu\_read\_unlock} is called
+
+\end{itemize}
+
+To detect these violations, we use \emph{granary} which is described in
+further detail in section~\ref{sec:impl}. Granary provides us the ability
+to add unlimited watchpoints.
+
+We first identify RCU protected data.
+This can be acheived in a number of ways. The easiest way is to intercept calls
+to \emph{rcu\_assign\_pointer}. A watchpoint is added at that point. The watchpoint
+is \emph{per-pointer}. The watchpoint is erased only when a reclaim takes place.
+
+Whenever an \emph{rcu\_dereference} takes place, a check is made to confirm that
+a \emph{generation} has started. If not, this detects that an \emph{rcu\_dereference}
+has taken place outside a critical section and is a \emph{rule 2 violation} If a
+generation has started, we then tag the associated RCU pointer with the current
+generation.
+
+When a dereference of RCU protected data takes place, the very first check is made
+to see if a \emph{generation} has started. The absence of a generation detects
+a \emph{rule 2 violation}.
+
+Next the RCU pointer must be checked to see if it was legally obtained. This is checked by checking the
+\emph{generation} information of the pointer. Since \emph{generation} information
+is setup only at the point when an \emph{rcu\_dereference} takes place, absence
+of this information indicates a \emph{rule 1 violations}.
+
+However the presence of the \emph{generation} information does not imply that the RCU
+pointer is legal. In order to confirm that, the \emph{generation} in the RCU pointer is
+compared with current thread's \emph{generation}. If the two generations are the same,
+then the RCU pointer is legal. Any other case denotes a \emph{rule 2 violation}
