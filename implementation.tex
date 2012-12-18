@@ -35,7 +35,50 @@ There are other optimization which can further reduce the monitoring overhead bu
 
 
 \subsection{Shadow memory and meta information}
-This section describes about the shadow memory and meta-information we used for implementing rcu policies. Shadow memory provides an efficient infrastructure for implementing watchpoint mechanism. Different binary rewriter framework provides support for shadow memory differently and Granary, build over Dynamorio Kernel, also provides support for shadow memory framework, Umbra. However in our approach we split and reserve a part of address space as shadow memory. Our approach of shadow memory is better than Umbra as it simplifies the shadow address calculation and there is no overhead of address lookup. 
+This section describes about the shadow memory and meta-information we used for implementing rcu policies. Shadow memory provides an efficient infrastructure for implementing watchpoint mechanism. Different binary rewriter framework provides support for shadow memory differently and Granary, build over Dynamorio Kernel, also provides support for shadow memory framework, Umbra. However in our approach we split and reserve a part of address space as shadow memory. Our approach of shadow memory is better than Umbra as it simplifies the shadow address calculation and there is no overhead of address lookup. The shadow memory is used to store the meta-information necessary for implementing RCU policies. The figure shows the structure used for storing the meta-information. 
+
+\begin{figure}[h]
+\centering
+\begin{lstlisting}
+/// Thread-specific watchpoint meta information.
+struct alias_meta_thread {
+
+    // spin lock and free list for allocating RCU thread meta info.
+    static volatile mem_t LOCK;
+    static alias_meta_thread *FREE_LIST;
+
+    // for linking in the free list.
+    alias_meta_thread *next;
+
+    // writer thread_id + 1 iff this RCU-protected structure is being
+    // written to; otherwise 0. An RCU-protected structure is writable from
+    // the time of allocation up until it is published using rcu_assign_pointer.
+    uint64_t writer_thread_id;
+
+    // The "generation" number of the thread
+    uint64_t gen_nums[NUM_THREADS];
+    ...
+};
+
+struct alias_meta {
+
+    union {
+
+        // if this watchpoint aliases another watchpoint
+        alias_meta *source;
+        // thread info about a source watchpoint
+        alias_meta_thread *thread_info;
+        uint64_t address;
+    } u;
+    ...
+}; 
+\end{lstlisting}
+\caption{Meta-Information: data structure used for meta-info}\label{fig:metainfo}
+\end{figure}
+
+The shadow memory stores a large array of meta information which can be accessed by the index stored with the watchpoint. The meta-information gets generated and stored during the rcu data allocation and the index of the shadow memory is used to generate the watched address. 
+
+
 
 
 Watchpoints can be hardware supported, software supported or can be hybrid. The Granary provides support to add software watchpoints at its wrapper layer when control transfer happens from kernel to the module.
