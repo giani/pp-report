@@ -1,0 +1,9 @@
+In the previous section we have discussed the several policies/assumptions one should follow to correctly use the RCU synchronization features. The mechanism we used to enforce these policies involves Dynamic Binary Instrumentation(DBT). To develop our system we used a new DBI infrastructure, Granary, which is developed over DynamoRIO kernel (DRK) and only instruments linux kernel modules. 
+
+\subsection{Granary}
+Dynamic Binary Instrumentation (DBI) is an execution control and analysis technique that involves injecting binary code into a running program. The injected code is term “Instrumentation”. DBI Infrastructure like DynamoRIO, Pin, JIFL, KernInst provides the infrastructure needed to perform fine-grained monitoring of program execution. However to implement our system we used Granary, a DBI infrastructure for instrumenting linux kernel modules. The advantage of using Granary over other instrumentation framework is it doesn’t cause any overhead for non-module code. Granary gets loaded as a modules and interpose when other kernel modules gets loaded to get control. Granary contains knowledge of all kernel types and provide support for fine-grained instrumentation.
+
+\subsection{Watchpoint}
+This section describes how granary provides support to set unlimited watchpoint. Watchpoints are debugging mechanism that allow a developer to demarcate a memory region and take the control whenever that gets accessed. Watchpoints can be hardware supported, software supported or can be hybrid. The Granary provides support to add software watchpoints at its wrapper layer when control transfer happens from kernel to the module.
+
+\subsection{Generation Number}
