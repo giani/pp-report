@@ -30,6 +30,33 @@ Our system refines the cost of adding watchpoint by substantially reducing the c
 	\item The address aliasing the watched address also gets watched.
 \end{itemize}   
 
+Figure shows the address-space layout in 64 bit architecture with 48 bit implementations. It also shows the mechanism we used to get the watched address by masking 16 bit and vice-versa.
+
+\emph{TODO : Add figures for non-cannonical addresses}
+
+
+\subsection {Instrumentation and Optimizations}
+
+This section describes the instrumentation scheme we used to implement watchpoint and few optimizations we used for lookup and handling local variables. The instrumentation schemes inserts instructions to check the watch address before every memory reference. The instrumentation performs the following operation before/after memory reference :
+
+\begin{itemize}
+\item Save and restore the registers that are used or side-effected during watchpoint( stack is used to spill these registers ).
+\item Calculate the reference address and check if this is one of the non-canonical addresses.
+\item Calculate the actual address if this is one of the non-canonical one and make a call to policy verifier function with actual address and the shadow memory index. 
+\item Emulate the actual instruction with corrected address and continue the execution after restoring registers.
+\end{itemize}
+
+Figure shows the example of memory operation and how it looks after instrumentation.The naive instrumentation which is described in the figure can cause significant runtime overhead. In-order to improve the runtime performance we implemented some optimizations : register liveness analysis and local variable check elimination. 
+
+\begin{itemize}
+\item \emph{Register Liveness Analysis}
+\item \emph{Local variable Check Elimination}
+\end{itemize} 
+
+There are other optimization which can further reduce the monitoring overhead but due to the time constraint we choose not to implement that for this couse due to time constraints.
+
+
+
 
 
 
