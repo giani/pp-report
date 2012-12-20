@@ -1,43 +1,16 @@
-\subsection{Approach}
-In the previous section we have discussed the several policies/assumptions one should follow to correctly use the RCU synchronization features. The mechanism we used to enforce these policies involves Dynamic Binary Instrumentation(DBT). To develop our system we used a new DBI infrastructure, Granary, which is developed over DynamoRIO kernel (DRK) and only instruments linux kernel modules. 
+The previous section discusses our approach for implement the watchpoint and how the per-thread and per-pointer meta-information is stored to implement the policies for correct usage of rcu. This section describes our implementation details and the changes we did in rcu interface and kernel wrapper to achieve our aim. 
 
-\subsection{Granary}
-Dynamic Binary Instrumentation (DBI) is an execution control and analysis technique that involves injecting binary code into a running program. The injected code is term “Instrumentation”. DBI Infrastructure like DynamoRIO, Pin, JIFL, KernInst provides the infrastructure needed to perform fine-grained monitoring of program execution. However to implement our system we used Granary, a DBI infrastructure for instrumenting linux kernel modules. The advantage of using Granary over other instrumentation framework is it doesn’t cause any overhead for non-module code. Granary gets loaded as a modules and interpose when other kernel modules gets loaded to get control. Granary contains knowledge of all kernel types and provide support for fine-grained instrumentation.
+One of the important challenge while implementing the system was most of the rcu interfaces is defined as macro and inline which gets embedded with the binary module and Granary interposes at the kernel module interface and gets control and releases it when there is a control transfer from kernel to the module and vice-versa. This makes it challenging to know when the rcu functions gets called. To handle this case we annotated the rcu interface which gives a callback to kernel wrapper when rcu function gets called. These kernel wrapper callbacks are used to update the meta-information and checks the violation of rcu rules. 
 
-\subsection{Watchpoint}
-Program debugging is a tedious but inevitable chore in any software development process. An efficient debugger can make programs more productive by allowing them to monitor the execution, inspect the state of the process and monitor any read and write to memory to inspect the data flow and corruption. The need of an efficient debugging tool supporting watchpoint increases with the complexity of the program. A particular useful feature for debugging that helps in debugging the program execution and data flow is \emph{watchpoint} or \emph{Data breakpoint}. \emph{Watchpoint} allow a developer to demarcate a memory region and take control whenever that gets accessed. It is similar to the instruction breakpoints which allows the developer to pause execution at specific instructions.
+some of the rcu rules violation checks done at kernel wrapper includes :
 
-Implementing  \emph{Watchpoints} are very expensive without any architectural support since it requires to inspect all memory read and writes and every memory operation needs to trigger some callback which then will inspect the operation.  In this project we leverage the advances in binary instrumentation and code manipulation to provide an efficient feature to add watchpoint at all memory accesses. We use Granary, a comprehensive kernel module instrumentation framework, to develop the \emph{Watchpoint} mechanism.
-
-A basic approach of monitoring every memory read and write using dynamic binary instrumentation adds new instructions before every memory references to perform the following task: (1) Determine the list of addresses which needs to be watched, (2) check if the program is referring the watched address, (3) raise a callback when memory operation happens at that address. A naive implementation of this approach is to maintain a watchlist lookup table and instrument all memory read and write to see if program is trying to access any of these memory. \emph{discuss other methods of adding watchpoint}. One of the demerits of these approaches is the cost of looking up for the watched address in the lookup table will be costly and will decrease the performance.
-
-We refined the approach of adding watchpoint in the two ways which will substantially reduce the cost of lookup.  First we used the non-canonical address to add the watchpoint in the addresses. The use of  non-canonical address as the watchpoint provides to various advantages. (1) decrease the cost of lookup for the watched address, (2) provides several bits of to store index of meta-informations.
-
-\subsection {Binary Instrumentation and Optimizations}
-
-This section describes the instrumentation scheme we used to implement watchpoint and few optimizations we used for lookup and handling local variables. The instrumentation schemes inserts instructions to check the watch address before every memory reference. The instrumentation performs the following operation before/after memory reference :
-
-\begin{itemize}
-\item Save and restore the registers that are used or side-effected during watchpoint( stack is used to spill these registers ).
-\item Calculate the reference address and check if this is one of the non-canonical addresses.
-\item Calculate the actual address if this is one of the non-canonical one and make a call to policy verifier function with actual address and the shadow memory index. 
-\item Emulate the actual instruction with corrected address and continue the execution after restoring registers.
+\begin {itemize}
+\item 123
+\item 235
+\item abc
 \end{itemize}
 
-Figure shows the example of memory operation and how it looks after instrumentation.The naive instrumentation which is described in the figure can cause significant runtime overhead. In-order to improve the runtime performance we implemented some optimizations : register liveness analysis and local variable check elimination. 
-
-\begin{itemize}
-\item \emph{Register Liveness Analysis}
-\item \emph{Local variable Check Elimination}
-\end{itemize} 
-
-There are other optimization which can further reduce the monitoring overhead but due to the time constraint we choose not to implement that for this couse due to time constraints.
-
-
-\subsection{Shadow memory and meta information}
-This section describes about the shadow memory and meta-information we used for implementing rcu policies. Shadow memory provides an efficient infrastructure for implementing watchpoint mechanism. Different binary rewriter framework provides support for shadow memory differently and Granary, build over Dynamorio Kernel, also provides support for shadow memory framework, Umbra. However in our approach we split and reserve a part of address space as shadow memory. Our approach of shadow memory is better than Umbra as it simplifies the shadow address calculation and there is no overhead of address lookup. 
 
 
 Watchpoints can be hardware supported, software supported or can be hybrid. The Granary provides support to add software watchpoints at its wrapper layer when control transfer happens from kernel to the module.
 
-\subsection{Generation Number}
