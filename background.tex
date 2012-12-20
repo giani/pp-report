@@ -57,14 +57,17 @@ is done, it announces the end of a critical section with the use of \emph{rcu\_r
 
 As can be seen, as opposed to locking on a rwlock, RCU readers just announce they
 have entered a critical section. Then in order to ensure that access is not
-interrupted, they use \emph{rcu\_dereference} to get a reference. Finally all accesses
+interrupted, they use \emph{rcu\_dereference} to get a reference. Access could be interrupted
+due to the compiler re-ordering some accesses while optimizing, which might lead
+to wrong results. It is also possible for some architectures (notably DEC Alpha) to reorder
+loads and stores which is also going to lead to an undesirable result. Finally all accesses
 to the shared data is through the use of \emph{p}. RCU guarantees that the data structure
 will not be reclaimed till the reader announces the end of its critical section.
 
 There are two terms that need to be defined in the context of RCU in order to aid
 any discussion.
 \begin{itemize}
-\item{\bf Quiescent State}: This is the state when a reader is not in an RCU critical state
+\item{\bf Quiescent State}: This is the state when a reader is not in an RCU read critical state.
 \item{\bf Grace Period}: Any time period during which each thread has been observed in at least one quiescent state.
 \end{itemize}
 
@@ -75,7 +78,7 @@ RCU has a list of well defined API. The most commonly used are
 \item\emph{rcu\_dereference}: Used to obtain a reference to shared data
 \item\emph{rcu\_assign\_pointer}: Used to announce an update.
 \item\emph{synchronize\_rcu}: Used to wait till a grace period has passed.
-\item\emph{call\_rcu}: Used to queue up a callback that takes place at some future time.
+\item\emph{call\_rcu}: Used to queue up a callback that takes place after the end of some grace period that starts in the future.
 \end{itemize}
 
 
@@ -87,6 +90,10 @@ section has announced. Any use of this reference obtained must be made before
 this critical section ends. If a new critical section has been announced a
 fresh reference must be obtained with the use of \emph{rcu\_dereference}. A quiescent
 state (in some flavours of RCU) must only be announced once it has actually
-taken place. On the update side, an update should only take place with use
+taken place.~\footnote{It is also important to note that while care must be taken to announce a
+quiescent state only when it has actually occured, one must not delay the announcement
+of the quiescent state. Since RCU maintains multiple copies which are only reclaimed
+after a grace period has occured, it serves only to increase the memory pressure on
+the system.} On the update side, an update should only take place with use
 of \emph{rcu\_assign\_pointer}. There are many other similar rules that must be
 followed.

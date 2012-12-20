@@ -38,16 +38,27 @@ f() {
 \end{figure}
 
 In figure~\ref{fig:rcuderefbug} a reference to q takes place directly without the use
-of \emph{rcu\_dereference}. In figure~\ref{fig:rcuusebug}, while p has been obtained with the
+of \emph{rcu\_dereference}. Since \emph{rcu\_dereference} has not been used to
+dereference q, the compiler barriers are not in place and therefore the compiler
+is free to aggresively speculate pointer values. This may lead to an undesirable
+result.
+
+In figure~\ref{fig:rcuusebug}, while p has been obtained with the
 use of rcu\_dereference, it is used (in the form of x) after the critical section
-has been announced. A similar bug would be if the reference obtained was outside the
-critical section. These bugs can be broadly classed as RCU pointer leaks.
+has been announced. As the end of a read critical section has been announced,
+RCU is now free to reclaim the reference that p may be pointing to. As a result
+when p is dereference in the next critical section, that can be a pointer to
+garbage which is very undesirable.  A similar bug would be if the reference
+obtained was outside the critical section.
+
+Both these examples be broadly class as RCU pointer leaks.
 
 As mentioned in section~\ref{sec:back}, there are many rules that must be followed
 while using RCU. For the purposes of this report, we shall name two rules.
 \begin{itemize}
-\item{\bf Rule 1}: Any reference to RCU protected must obtained with the use \emph{rcu\_dereference}
-\item{\bf Rule 2}: Any reference obtained \emph{using rcu\_dereference} must be used with the critical section it was obtained in.
+\item{\bf Rule 0}: Any access to RCU protected data must happen in an RCU read critical section.
+\item{\bf Rule 1}: Any reference to RCU protected data in a read critical section must obtained with the use \emph{rcu\_dereference}
+\item{\bf Rule 2}: Any reference obtained \emph{using rcu\_dereference} must be used within the critical section it was obtained in.
 \end{itemize}
 
 We shall call the bugs of the type represented in figure~\ref{fig:rcuderefbug} as \emph{Rule 1 violations}
@@ -68,8 +79,8 @@ At that point in time, we need to be able to check if the reference has
 been obtained legally. If so, we must know if it has been obtained in
 the current critical section.
 
-In order to detect these issues, we use \emph{generations}. \emph{Generations}
-can be defined as an RCU critical section. A generation has the following
+In order to detect these issues, we use \emph{generations}. A \emph{Generation}
+can be defined as an RCU read critical section. A generation has the following
 properties
 
 \begin{itemize}
