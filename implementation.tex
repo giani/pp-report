@@ -1,16 +1,10 @@
-The previous section discusses our approach for implement the watchpoint and how the per-thread and per-pointer meta-information is stored to implement the policies for correct usage of rcu. This section describes our implementation details and the changes we did in rcu interface and kernel wrapper to achieve our aim. 
+In previous section we discussed our approach for implement watchpoint and using thread generation number and watchpoint generation number for verifying rcu policies. In this section we will describe our implementation details and the changes we did in rcu interface and kernel wrapper to achieve our aim. 
 
-One of the important challenge while implementing the system was most of the rcu interfaces is defined as macro and inline which gets embedded with the binary module and Granary interposes at the kernel module interface and gets control and releases it when there is a control transfer from kernel to the module and vice-versa. This makes it challenging to know when the rcu functions gets called. To handle this case we annotated the rcu interface which gives a callback to kernel wrapper when rcu function gets called. These kernel wrapper callbacks are used to update the meta-information and checks the violation of rcu rules. 
-
-some of the rcu rules violation checks done at kernel wrapper includes :
+One of the important challenge while implementing our system was most of the rcu interfaces is defined as macro and inline which gets embedded into binary module. Granary being a DBI tool doesn’t know when one of these rcu interface function gets called. To handle this case we annotated RCU functions that gives a callbacks to kernel wrapper on the uses of rcu interface. These kernel wrappers are updates the meta-information and check the violation of RCU rules. Our system enforces following policy to check the rcu usage : 
 
 \begin {itemize}
-\item 123
-\item 235
-\item abc
+	\item 123	
+	\item 235
+	\item abc
 \end{itemize}
-
-
-
-Watchpoints can be hardware supported, software supported or can be hybrid. The Granary provides support to add software watchpoints at its wrapper layer when control transfer happens from kernel to the module.
 

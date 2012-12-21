@@ -71,20 +71,11 @@ The per pointer meta information gets stored in the shadow memory and includes t
 We also used an efficient approach to implement shadow memory. Shadow memory provides an efficient infrastructure for implementing watchpoint mechanism. There are many binary instrumentation framework which provides support for shadow memory framework. DynamoRIO kernel also provides the support for Umbra, a shadow memory framework. However, in our approach we split and reserve a part of address space as shadow memory. Our approach of shadow memory is better than Umbra as it simplifies the shadow address calculation and there is no overhead of address lookup. The shadow memory includes a large array of 
 
 \begin{figure*}[h]
-\centering
+%\centering
 \begin{lstlisting}
 /* Thread-specific watchpoint meta information. */
 struct alias_meta_thread {
-<<<<<<< HEAD
     // for linking in the free list.
-=======
-
-    /* spin lock and free list for allocating RCU thread meta info. */
-    static volatile mem_t LOCK;
-    static alias_meta_thread *FREE_LIST;
-
-    /* for linking in the free list. */
->>>>>>> 93b3def5747b58ef3e2163b343f9a34dc2d4a3a2
     alias_meta_thread *next;
 
     /* writer thread_id + 1 iff this RCU-protected structure is being
@@ -97,16 +88,8 @@ struct alias_meta_thread {
     uint64_t gen_nums[NUM_THREADS];
 };
 
-<<<<<<< HEAD
 union alias_meta {
         // if this watchpoint aliases another watchpoint
-=======
-struct alias_meta {
-
-    union {
-
-        /* if this watchpoint aliases another watchpoint */
->>>>>>> 93b3def5747b58ef3e2163b343f9a34dc2d4a3a2
         alias_meta *source;
         /* thread info about a source watchpoint */
         alias_meta_thread *thread_info;
@@ -115,11 +98,9 @@ struct alias_meta {
 \caption{Meta-Information: data structure used for meta-info}\label{fig:metainfo}
 \end{figure*}
 
+The shadow memory stores a large array of meta information which can be accessed by the index stored with the watchpoint. The meta-information gets generated and stored during the rcu data allocation and its index is used to generate watched address. Our meta-information also keeps track of pointer aliasing. The two elements \emph{source} and emph{thread\_info} helps in tracking the pointer aliasing which is particularly useful in tracking rcu bugs violating rule 1 \emph{TODO : check this}. 
 
-
-The shadow memory stores a large array of meta information which can be accessed by the index stored with the watchpoint. The meta-information gets generated and stored during the rcu data allocation and its index is used to generate watched address. Our meta-information also keeps track of pointer aliasing. The two elements \emph{source} and \emph{thread\_info} helps in tracking the pointer aliasing which is particularly useful in tracking rcu bugs violating rule 1.
-
-The meta-information contains the thread specific generation number and writer \emph{thread\_id} which is allowed to modify it before publish. These thread specific meta-information gets generated at runtime while adding watchpoint. The figure below shows the structure of per-pointer meta-information.
+The meta-information contains the thread specific generation number and writer \emph{thread\_id} which is allowed to modify it before publish. These thread specific meta-information gets generated at runtime while adding watchpoint. The figure below shows the structure of per-pointer meta-information. 
 
 Apart from the per-pointer meta-information we also store the per-thread meta information. These per-thread information gets stored at the thread local slots created at the bottom of the stack. These thread-local-storage (TLS) is also used to store the generation number which is then used to check the correct usage of RCU.
 
