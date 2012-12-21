@@ -2,9 +2,14 @@ In previous section we discussed our approach for implement watchpoint and using
 
 One of the important challenge while implementing our system was most of the rcu interfaces is defined as macro and inline which gets embedded into binary module. Granary being a DBI tool doesn’t know when one of these rcu interface function gets called. To handle this case we annotated RCU functions that gives a callbacks to kernel wrapper on the uses of rcu interface. These kernel wrappers are updates the meta-information and check the violation of RCU rules. Our system enforces following policy to check the rcu usage : 
 
-\begin {itemize}
-	\item 123	
-	\item 235
-	\item abc
-\end{itemize}
+\begin {itemize} 
+	\item \emph{Access of RCU protected inside RCU read critical section :} Our system checks the access of RCU protected We use thread and watchpoint generation number to verify the access of RCU protected data in read critical section. Our system increases thread generation number whenever it encounters \emph{rcu\_read\_lock()}(enters read critical section) and further increases it when comes out of the read critical section(\emph{rcu\_read\_unlock()}), making thread generation number even when it enters the read critical section and odd when it comes out of the read critical section. During access of RCU protected data our callback verifies that the thread generation number is even and the access is happening in read critical section.
 
+	\item \emph{Recursive use of rcu read critical section :} One of the important complexity involved in previous approach is recursive use of read critical section. To handle recursive use of read critical section we increase the thread generation number only when we encounter first \emph{rcu\_read\_lock()} and last \emph{rcu\_read\_unlock()}. We also count the number of read lock and read unlock using thread local slot which ensures that the number of read lock and read unlock always matches.
+
+	\item \emph{ Direct access of RCU protected data in read critical section :} Any direct access of RCU protected data inside read critical section is not allowed. To check the direct access of rcu protected data from direct access we encode the pointer aliasing information in meta-data, which is set inside \emph{rcu\_dereference()}. This allows us to check the direct access of RCU protected data and if the access is happening through one of the alias pointer.
+
+	\item \emph{ Reference of RCU protected data obtained using \emph{rcu\_dereference} must be used within same critical section :} As mentioned above the thread generation number is used to check the access of rcu protected data. To check the access of RCU protected data in the same critical section in which it is dereference by using watchpoint generation number. Our system checks for the thread generation number when it calls \emph{rcu\_dereference} to verify if it is called inside a read critical section and then sets the same thread generation number as watchpoint generation number. Whenever the access of reference pointer happens it checks if the pointer is one of the alias pointer or not and if yes then what is the generation number and if that is same as the thread generation number. 
+
+	\item \emph{ Reference of rcu pointer by its own thread till it gets published using \emph{rcu\_assign\_pointer()}:} To update the rcu protected data structure, a thread needs to make a local copy of the data it needs to modify till the publish has happen and no other thread should have subscription for that pointer. This can be easily handled by using thread local variable by the programmer. Our system also ensures this by maintaining \emph{writer\_thread\_id} with watchpoint meta-information and the data is only allowed to modify and refer by its writer thread id till the publish has not happened(inside \emph{rcu\_assign\_pointer()}).
+\end{itemize}
