@@ -11,3 +11,9 @@ Our evaluation strategy aims to  the following hypotheses:
 \subsection {RCU debugger}
 To evaluate our system for rcu debugging, we introduced few rcu bugs violating Rule 1 and Rule 2, as discussed in previous section. The details of few of them is provided in the appendix section. As a part of debugging information we print the filename and line number. 
 
+\subsection{Performance Overhead}
+To evaluate the performance overhead incurred by the Granary and watchpoint we used rcutorture module running with 100 readers thread and 8 writer thread. As experimental setup, we run our system in Guest Virtual machine (QEMU) powered with Linux 2.6.32 kernel on a Host system equipped with an Intel(R) Core(TM) i7-860, 2.80 GHz CPU.
+
+\subsection{Space Overhead}
+The size of shadow memory depends on the number of watchpoints added and currently active. Shadow memory is used to store the meta-information, the size of which is proportional to the number of threads running. This increases the space overhead and makes it \emph{M x N} for the system running \emph{N} threads and having \emph{M} active watchpoint. The point to be noted that these are the virtual memory overhead. We do not expect the space overhead to be serious concern on a 64 bit architecture.    
+
