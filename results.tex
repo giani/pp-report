@@ -1,8 +1,13 @@
 As part of evaluation, we used rcu torture test. It provides support for testing all rcu implementations and gets enabled by config option CONFIG\_RCU\_TORTURE\_TEST. It creates an rcutorture kernel module that can be loaded to run a torture test.  The test periodically outputs status messages via printk(), which can be examined via dmesg. The test is started when the module is loaded, and stops when the module is unloaded. We veriﬁed our system by running it in a Guest virtual machine Hosted by system equipped with an Intel(R) Core(TM) i7-860X 2.80 GHz CPUprocessor and natively natively on a 2.93GHz Intel Core ™ 2 Duo CPU. In the course of evaluation all system was running Linux 2.6.32 kernel.
 
 \subsection{Hypothesis}
-Our evaluation strategy aims to test three hypotheses:
+Our evaluation strategy aims to  the following hypotheses:
 \begin{itemize}
-	\item  qwe
-	\item  wer
+	\item Dynamic Binary Instrumentation (DBI) can be used to debug the incorrect usage of RCU primitives.
+	\item The performance overhead of Granary and Watchpoint used for debugging usage of RCU primitive.
+	\item The space overhead of shadow memory used for storing meta-information.
 \end{itemize}
+
+\subsection {RCU debugger}
+To evaluate our system for rcu debugging, we introduced few rcu bugs violating Rule 1 and Rule 2, as discussed in previous section. The details of few of them is provided in the appendix section. As a part of debugging information we print the filename and line number. 
+
