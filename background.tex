@@ -1,6 +1,20 @@
-Programming with RCU is a completely different paradigm as compared to traditional
-synchronization techniques. Due to its design, care must be taken in dereferencing
-shared data. Critical sections must also be clearly defined.
+Programming with RCU is a completely different paradigm as compared to traditional synchronization techniques. It provides a well defined primitive which can be used for defining critical section, updating or accessing rcu protected data. Due to its complex design, care must be taken while using these rcu synchronization primitive.
+
+
+Figure~\ref{fig:rwuse} shows an example of typical Reader-Writer lock and how it works. In this example, \emph{q} is shared data which can be accessed by various reader and writer threads. \emph{q\_lock} is a \emph{rwlock\_t} which is used to synchronize the access \emph{q} between different readers and writers. To read \emph{q}, first reader acquires the \emph{rwlock\_t}, \emph{q\_lock}, in read mode. The reader then goes ahead and reads shared data \emph{q}. Once it is done with reading, it unlocks \emph{q\_lock}.
+
+In contrast Figure~\ref{fig:RCUuse} gives an example of RCU synchronization primitive and how it can be used. Here, \emph{q} is a global data shared between various readers \& writers and is protected using RCU. When a reader wishes to dereference that data, it first announces the beginning of an RCU critical section using \emph{rcu\_read\_lock()}. Then in order to dereference \emph{q}, it uses \emph{rcu\_dereference()}. At this point it holds a legal reference and RCU guarantees that structure will not be reclaimed at least until this reader announces the end of the critical section. The reader now go ahead and use the reference it has. Finally once it is done, it announces the end of a critical section with the use of \emph{rcu\_read\_unlock()}.
+
+In the two examples we can see that, as opposed to locking on a rwlock, RCU readers just announce they have entered a critical section. In order to ensure that access is not
+interrupted, they use \emph{rcu\_dereference()} to get a reference. Access could be interrupted due to the compiler re-ordering some accesses while optimizing, which might lead
+to wrong results. It is also possible for some architectures (notably DEC Alpha) to reorder loads and stores which is also going to lead to an undesirable result. Finally all accesses to the shared data is through the use of \emph{p}. RCU guarantees that the data structure
+will not be reclaimed till the reader announces the end of its critical section.
+
+In order to take the discussion further, it is important to introduce two terms that need to be defined in the context of RCU.
+\begin{itemize}
+\item{\bf Quiescent State}: This is the state when a reader is not in an RCU read critical state.
+\item{\bf Grace Period}: Any time period during which each thread has been observed in at least one quiescent state.
+\end{itemize}
 
 
 \begin{figure}[t]
@@ -38,40 +52,8 @@ f() {
 \caption{Using RCU}\label{fig:RCUuse}
 \end{figure}
 
-Figure~\ref{fig:rwuse} shows how a
-typical Reader Writer lock works. \emph{q} is the shared data which various readers
-and writers wish to access. \emph{q\_lock} is used to synchronize access to \emph{q}.
-First the reader locks the rwlock, \emph{q\_lock},
-in the read mode. It then goes ahead an reads the data in \emph{q}. Finally once it is
-done, it unlocks \emph{q\_lock}.
 
-In contrast Figure~\ref{fig:RCUuse} gives an example of how RCU is used. \emph{q} is a global pointer
-which points to some data which is protected with the use of RCU. When a reader
-wishes to dereference that data, it first announces the beginning of an RCU critical
-section using \emph{rcu\_read\_lock}. Then in order to derefence that data, it 
-uses \emph{rcu\_dereference}. At this
-point it holds a legal reference and RCU guarantees that structure will not be
-reclaimed at least until this reader announces the end of the critical section.
-The reader now proceeds to go ahead and use the reference it has. Finally once it
-is done, it announces the end of a critical section with the use of \emph{rcu\_read\_unlock}.
-
-As can be seen, as opposed to locking on a rwlock, RCU readers just announce they
-have entered a critical section. Then in order to ensure that access is not
-interrupted, they use \emph{rcu\_dereference} to get a reference. Access could be interrupted
-due to the compiler re-ordering some accesses while optimizing, which might lead
-to wrong results. It is also possible for some architectures (notably DEC Alpha) to reorder
-loads and stores which is also going to lead to an undesirable result. Finally all accesses
-to the shared data is through the use of \emph{p}. RCU guarantees that the data structure
-will not be reclaimed till the reader announces the end of its critical section.
-
-There are two terms that need to be defined in the context of RCU in order to aid
-any discussion.
-\begin{itemize}
-\item{\bf Quiescent State}: This is the state when a reader is not in an RCU read critical state.
-\item{\bf Grace Period}: Any time period during which each thread has been observed in at least one quiescent state.
-\end{itemize}
-
-RCU has a list of well defined API. The most commonly used are
+RCU also has a list of well defined primitive. The most commonly used are
 \begin{itemize}
 \item\emph{rcu\_read\_lock}: Used to announce the beginning of a critical section.
 \item\emph{rcu\_read\_unlock}: Used to announce the end of a critical section.
@@ -85,15 +67,15 @@ RCU has a list of well defined API. The most commonly used are
 Using RCU requires careful attention from the programmer. There are some rules
 and inherent assumptions while using RCU. For example, access to shared data
 should only happen with a reference which has been obtained with the use of
-\emph{rcu\_dereference}. This call should also happen only after an RCU read critical
+\emph{rcu\_dereference()}. This call should also happen only after an RCU read critical
 section has announced. Any use of this reference obtained must be made before
 this critical section ends. If a new critical section has been announced a
-fresh reference must be obtained with the use of \emph{rcu\_dereference}. A quiescent
+fresh reference must be obtained with the use of \emph{rcu\_dereference()}. A quiescent
 state (in some flavours of RCU) must only be announced once it has actually
 taken place.~\footnote{It is also important to note that while care must be taken to announce a
 quiescent state only when it has actually occured, one must not delay the announcement
 of the quiescent state. Since RCU maintains multiple copies which are only reclaimed
 after a grace period has occured, it serves only to increase the memory pressure on
 the system.} On the update side, an update should only take place with use
-of \emph{rcu\_assign\_pointer}. There are many other similar rules that must be
+of \emph{rcu\_assign\_pointer()}. There are many other similar rules that must be
 followed.
