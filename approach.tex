@@ -1,54 +1,103 @@
-Previous section describes about the importance of Read Copy Update (RCU) in parallel programming paradigm and the rules one should follow to correctly use the RCU. It also discusses about the violation of the RCU rules which can act as potential bug in program. we also discussed the challenges involved in identifying such bugs and some of the existing approaches like static analysis, lock-set based approach etc used to identify them. All these solution is limited in their approach in identifying such bugs.
+The previous sections describe about the importance of Read Copy Update (RCU) in parallel programming paradigm and the rules one should follow to correctly use the RCU primitives. It also describes the violation of RCU rules, which can be a potential bug in program. It also mentions the challenges involved in identifying such bugs and why the existing approaches like static analysis, lock-set based approach etc is not sufficient to identify them.
 
-\emph{TODO : discuss some limitations}  
-
-In our mechanism to enforce the RCU rules and identify the violation of these rules, thus potential bugs, involve the use of Dynamic Binary Instrumentation (DBI). Dynamic Binary Instrumentation (DBI) is an execution control and analysis technique that involves injecting binary code into a running program. The injected code is term “Instrumentation”. There are many DBI infrastructure exist like DynamoRIO, DynamoRIO Kernel (DRK),  Pin, JIFL, KernInst etc which provides support for fine-grained monitoring and program execution. However, to develop our system we used Granary, a comprehensive kernel module instrumentation framework. The use of granary impose limitation of analysing only the module code, but it is advantageous as it doesn’t impose any overhead when non-module code is running. Granary allows the interaction between the kernel and module through dynamic module and kernel wrapper having rich information about kernel and its types. The dynamic module and kernel wrapper of Granary provides an infrastructure to efficiently add the watchpoint at any memory location. The details about this is discussed in \emph{TODO provide link to section}.
+Our approach to identify the incorrect usage of RCU primitive and possible rcu bugs involves the mechanism of Dynamic Binary Instrumentation (DBI). Dynamic Binary Instrumentation (DBI) is an execution control and analysis technique that involves injecting binary code into a running program. The injected code is term “Instrumentation”. There are many DBI infrastructure exist like DynamoRIO, DynamoRIO Kernel (DRK),  Pin, JIFL, KernInst etc which provides support for fine-grained monitoring and program execution. Our system uses Granary, a comprehensive kernel module instrumentation framework. The choice of Granary as DBI framework is based on the fact that it provides the support for instrumenting only kernel modules and thus incur no overhead when non-module code executes. Granary allows the interaction between the kernel and module through module and kernel wrapper having rich information about kernel and its types, thus giving us the complete control on all the data passed over the wrapper. It also provide the infrastructure for adding watchpoint for all the memory addresses passed over the wrapper. We also decided to evaluate the system by introducing some known bugs while rcu torture test which is build as kernel module and Granary best fit as the DBI framework. 
 
 
 \subsection{Granary}
-Granary is a Dynamic Binary Instrumentation (DBI) framework, which is developed over DynamoRIO Kernel (DRK) and provides support for fine-grained instrumentation of only kernel module. Granary gets loaded as the kernel module and interposes during module loading mechanism to generate dynamic module wrapper. It also use the rich kernel type informations to generate a static kernel wrapper and once the module gets loaded loaded, it runs under the control of Granary and all interactions between the kernel and module happens through one of these wrappers. The presence of these wrappers provides an efficient infrastructure to add watchpoint on the pointers passed from kernel to the module.   
+Granary is a Dynamic Binary Instrumentation (DBI) framework, developed over DynamoRIO Kernel (DRK) and provides support for fine-grained instrumentation of only kernel modules. Granary gets loaded as the kernel module and interposes during module loading mechanism to generate the module wrapper. It also use the rich kernel type informations to generate a static kernel wrapper. Once the module gets loaded, it runs under the control of Granary and all interactions between the kernel and module happens through one of these wrappers. The presence of these wrappers provides an efficient infrastructure to monitor all the pointers passed from the kernel to the module and add watchpoint on them. The rich kernel type information at the wrapper layer provides support for adding type-based watchpoint on the pointers. However for this project we are using simple watchpoint implementation for tracking the use of RCU primitive and access of RCU protected data. The detail of watchpoint implementation and its usage is provided in next section. 
 
 
 \subsection{Watchpoint}
-Program debugging is a tedious but inevitable chore in software development process. An efficient debugger can make programs more productive by allowing them to monitor the execution, inspect the state of the process and monitor memory read and write to inspect the data flow and corruption. This increases the requirement of an efficient debugging tool supporting an useful feature \emph{Watchpoint}. The need of such debugging tool increases as the complexity of the program grows such as parallel system. \emph{Watchpoint} allow a developer to demarcate a memory region and take control whenever that gets accessed. It is similar to the instruction breakpoints which allows the developer to pause execution at specific instructions.
+Program debugging is a tedious but inevitable chore in software development process. An efficient debugger can make programmers more productive by allowing them to monitor the execution, inspect the state of the process and monitor memory read and write to inspect the data flow and corruption. This increases the requirement of an efficient debugging tool supporting an useful feature called \emph{Watchpoints}. The need of such debugging tool increases, as the complexity of the program grows such as parallel system. \emph{Watchpoint} allow a developer to demarcate a memory region and take control whenever that gets accessed. It then ensures the safe access of the memory addresses by checking certain policy. It is similar to the instruction breakpoints which allows the developer to pause execution at specific instructions.
 
-Implementing software watchpoint, without any architectural support, is expensive since it requires to inspect all memory operations and trigger a callback on the watched addresses. Our system leverages the advances in binary instrumentation and code manipulation technique to provide an efficient feature to add watchpoint at memory addresses. We used this feature to check the correct usage of RCU protected data, thus checking the violation of RCU rules and possible bugs in the program.
+Implementing software watchpoint, without any architectural support, is expensive since it requires to inspect all memory operations and trigger a callback on the watched addresses. Our system leverages the advances in binary instrumentation and code manipulation technique to provide the efficient feature to add watchpoint at memory addresses. Our system uses this feature to check the correct usage of RCU synchronization primitive and access of RCU protected data, thus identifying the violation of rules and possible buggy usage of RCU.
 
-The naive approach of implementing watchpoint using dynamic binary instrumentation adds new instructions before/ after every memory references to performs the following task: 
+The naive approach of implementing watchpoint using dynamic binary instrumentation adds new instructions across every memory references to performs the following task: 
 \begin{itemize}
 	\item Determine the list of addresses which needs to be watched and check if the program is referring to one of the watched addresses.  
 	\item Raise a callback when memory operation happens at one of the watched addresses.
-	\item Incase the address is not one of the watched addresses then continue the normal execution.
+	\item Incase the address is not one of the watched addresses, continue the normal execution.
 \end{itemize}  
-The system also maintains a watchlist lookup table to efficiently look for the addresses before making a callback. One of the drawback of this approach is the runtime overhead of lookup in the watchlist which happens for every memory addresses. This makes the implementation of watchpoint costly. 
+The naive system also maintains a watchlist lookup table to maintain the list of addresses to be watched. It uses an efficient algorithm to look for the addresses in the list before making a callback on watched addresses. One of the drawback of this approach is the runtime overhead, which incurs due to address lookup for every memory addresses. This makes the implementation of watchpoint costly. 
 
-Our system refines the cost of adding watchpoint by substantially reducing the cost of lookup and providing options for faster lookup of meta information in shadow memory. The detail about shadow memory and meta information is provided in section \emph{TODO : refer the section}. We took the advantage of 48 bit implementation in 64-bit architecture and used non-canonical addresses to implement the watchpoint mechanism. The use of non-canonical address provides us the following advantages :
+Our system refines the cost of adding watchpoint by substantially reducing the cost of lookup and providing options for faster lookup of meta information in shadow memory. The detail about shadow memory and meta information is provided in next section. We took the advantage of 48 bit implementation in 64-bit architecture and used non-canonical addresses to implement our watchpoint mechanism. The use of non-canonical address provides us the following advantages :
 \begin{itemize}
-	\item It decreases the cost of lookup as the non-canonical addresses can be easily recognised by masking 48 bit.
+	\item It decreases the cost of lookup as the non-canonical addresses can be easily recognised by masking lower 48 bits of the addresses.
 	\item It also provides one to one mapping between the actual address and watched address thus proving virtually no cost for fixing the address.
-	\item It provides 15 bits to encode some information about the watched address.
-	\item The address aliasing the watched address also gets watched.
+	\item The unused 15 bits in non-canonical address is used to encode information about the shadow memory storing meta-informations.
+	\item The addresses aliasing the watched address also gets watched, thus there is no need to implement a pointer tracking mechanism.
 \end{itemize}   
 
-Figure shows the address-space layout in 64 bit architecture with 48 bit implementations. It also shows the mechanism we used to get the watched address by masking 16 bit and vice-versa.
+Figure~\ref{fig:addrspace} shows the address-space layout in 64 bit architecture with 48 bit implementations. 
+\begin{figure}[h!]
+\centering
+ 	\includegraphics[width=0.2\textwidth]{Picture3-png}
+\caption{64-bit address layout (48bit implementation)}\label{fig:addrspace}
+\end{figure}
+The highest 1 bit (sign bit) is used for adding watchpoint and differentiate between original and watched addresses. The next 15 bit of address is used to for storing shadow memory index storing meta-information. Our method of storing shadow memory index puts a limit on our system in terms of number of active watchpoint we can add at a time, but we consider this is enough for our project to track the rcu protected data. Figure~\ref{fig:watchpoint} shows the detail, how the watched address gets created.
 
-\emph{TODO : Add figures for non-cannonical addresses}
+\begin{figure}[h!]
+\centering
+ 	\includegraphics[width=0.4\textwidth]{Picture6-png}
+\caption{Watchpoint}\label{fig:watchpoint}
+\end{figure}
 
 
 \subsection {Instrumentation and Optimizations}
-Implementing watchpoint requires monitoring of every memory operation. A naive approach of tracking every memory read and write operation requires adding new instructions before every memory references. The use of naive instrumentation scheme poses significant overhead as it adds bunch of instrumentation across instructions. we refined our approach of adding watchpoint by using non-canonical address which makes the lookup faster. The detail of which is provided in previous section. The instrumentation performs following operation to every memory reference :
+Watchpoints essentially requires monitoring of every memory read (load) and write (store) operations. A basic monitoring approach using using dynamic binary instrumentation adds new instructions before every memory references looking for one of the watched address. In our system one of these watched addresses includes the non-canonical addresses generated out of original address and the index of shadow memory storing required meta-information. The detail of watchpoint implementation is provided in previous section. The instrumentation required for implementing watchpoint perform the following operation before every memory references: 
 
 \begin{itemize}
 	\item Save and restore the registers that are used or side-effected during watchpoint( stack is used to spill these registers ).
-	\item Calculate the reference address and check if this is one of the non-canonical addresses.
-	\item Calculate the actual address if this is one of the non-canonical one and make a call to policy verifier function with actual address and the shadow memory index. 
+	\item Calculate and check the reference address and check if this is one of the non-canonical addresses.
+	\item Inject a callback function taking the original address and shadow memory index as argument, if this is one of the non-canonical one. 
 	\item Emulate the actual instruction with corrected address and continue the execution after restoring registers.
+	\item Follow the normal course of execution if the address is not one of the watched.
 \end{itemize}
 
-Figure shows example of memory operation and how it looks after instrumentation. Our instrumentation also uses some optimization to improve the runtime performance. We used the following optimizations :  
+\begin{figure}[th!]
+%
+\framebox{\begin{minipage}[t]{1.02\columnwidth}%
+\vspace{-1em}
+\begin{codebox}
+\Procname{$\proc{Native-Memory-Operation}$}
+\li  mov $\id{\%rsi   -> [\%rax, \%rbx]}$ 
+\end{codebox}%
 
+\begin{codebox}
+\Procname{$\proc{Instrumented-Memory-Operation}$}
+\li  	push 	$\id{\%rcx}$
+\li  	push 	$\id{\%rdi}$
+\li 	lea 	$\id{[\%rax, \%rbx] 	-> 	\%rdi}$
+\li 	pushf
+\li 	movabs 	$\id{0xffff000000000000		->	\%rcx}$
+\li	or 	$\id{\%rcx 	->	\%rdi}$
+\li	cmp 	$\id{\%rdi 	->	\%rdi}$
+\li	je     	$\id{addr\_not\_watchpoint}$
+\li	popf
+\li 	$\proc{insert\_clean\_call}(\id{watch\_write}, \id{\%rdi}, \id{1})$
+\li	mov    	$\id{\%rsi	->	[\%rdi]}$
+\li	pop	$\id{\%rdi}$
+\li	pop 	$\id{\%rcx}$
+\li	jmp 	$\id{done\_instrumenting}$
+\li	LABEL:  $\id{addr\_not\_watchpoint}$
+\li	popf
+\li	pop	$\id{\%rdi}$
+\li	pop 	$\id{\%rcx}$
+\li  	mov 	$\id{\%rsi   	-> 	[\%rax, \%rbx]}$ 
+\li	LABEL:  $\id{done\_instrumenting}$
+\li  	nop	
+\end{codebox}%
+\end{minipage}}
+
+\caption{Native and Instrumented memory write Operation\label{fig:mem-write}}
+\vspace{-1em}
+\end{figure}
+
+Figure~\ref{fig:mem-write} shows the example of native and a naive version of instrumented code for memory write operation. The naive instrumented code described above suffers from a significant runtime overhead. We implemented and applied some of the optimization to systematically improve the runtime performance. We used the following optimizations: 
 \begin{itemize}
-	\item \emph{Register Liveness Analysis}
+	\item \emph{Dead Registers Analysis : }Every instrumentation system needs scratch registers for creating and injecting new instructions. These registers can be obtained by spilling them to memory locations. Our naive instrumentation uses stack to spill these registers. The frequent spilling of these registers on stack or memory location increases the cost of instrumentation significantly. Our system performs the register liveness analysis on each basic block to identify registers that can be safely used without requiring it to spill on the stack. For register liveness analysis, our system starts instrumenting from the end of the basicblock moving upward and collecting all the source and destination registers making all the non source and non base-displacement registers (whole destination registers) as dead.  
+	\item \emph{Flag Liveness Analysis : } In the above example for naive instrumentation, we also need to save and restore the flags as the instrumented code modifies the flag. One important optimization in instrumentation is Flag Liveness analysis and we save and restore the flag only when it is alive. To identify the dead flag as we move from upward instrumenting basic block, we find if any of the instruction modify the flags we consider the instruction previous to that as having dead flag. 
+
 	\item \emph{Local variable Check Elimination} :  It identify the local variable references via the stack pointer reference.
 \end{itemize} 
 
