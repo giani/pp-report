@@ -1,7 +1,8 @@
 Programming with RCU is a completely different paradigm as compared to traditional
-synchronization techniques. Due to its design, care must be taken in dereferencing
-shared data. Critical sections must also be clearly defined.
-
+synchronization techniques. Similar to other techniques, the programmer must take care to clearly define
+read critical sections. However, on the update side, the programmer must use another
+traditional synchronization technique. We further illustrate difference with the
+use of two examples.
 
 \begin{figure}[t]
 \centering
@@ -55,17 +56,17 @@ reclaimed at least until this reader announces the end of the critical section.
 The reader now proceeds to go ahead and use the reference it has. Finally once it
 is done, it announces the end of a critical section with the use of \emph{rcu\_read\_unlock}.
 
-As can be seen, as opposed to locking on a rwlock, RCU readers just announce they
-have entered a critical section. Then in order to ensure that access is not
-interrupted, they use \emph{rcu\_dereference} to get a reference. Access could be interrupted
-due to the compiler re-ordering some accesses while optimizing, which might lead
-to wrong results. It is also possible for some architectures (notably DEC Alpha) to reorder
-loads and stores which is also going to lead to an undesirable result. Finally all accesses
+The key difference to be noted is that while in the case of rwlocks, the readers
+need to wait till they can lock the rwlock, RCU readers just announce the start
+of a read critical section. In order to ensure that access is not interrupted,
+a reference is obtained with the use of \emph{rcu\_dereference}. \emph{rcu\_dereference}
+ensures that compiler optimizations which reorder access are prevented, as well
+some prevent load store reordering on some architectures such as DEC Alpha.
+Finally all accesses
 to the shared data is through the use of \emph{p}. RCU guarantees that the data structure
 will not be reclaimed till the reader announces the end of its critical section.
 
-There are two terms that need to be defined in the context of RCU in order to aid
-any discussion.
+In order to aid further discussion, we now define two terms in context of RCU
 \begin{itemize}
 \item{\bf Quiescent State}: This is the state when a reader is not in an RCU read critical state.
 \item{\bf Grace Period}: Any time period during which each thread has been observed in at least one quiescent state.
