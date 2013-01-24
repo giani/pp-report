@@ -1,7 +1,7 @@
 Parallel programming is already mainstream these days. There are a wide variety
 of mechanisms being used to provide synchronization and serialization.
 Operating systems are a popular example for utilizing various synchronization
-mechanims. %Add citations here for spinlocks, mutexes and for RCU, with possibly links to the sourcse as opposed to publications for Linux/BSD/Solaris
+mechanisms. %Add citations here for spinlocks, mutexes and for RCU, with possibly links to the sourcse as opposed to publications for Linux/BSD/Solaris
 With scalability being extremely important for the Operating Systems,
 techniques have been proposed to reduce the overheads by utilizing lock-free
 techniques. Read Copy Update~\cite{paulmck:TechReport} is one such technique which is
@@ -22,14 +22,15 @@ readers have gone away.
 \begin{figure}[b]
 \centering
 \begin{lstlisting}
-#define rcu_read_lock		preempt_disable
-#define rcu_read_unlock		preempt_enable
+#define rcu_read_lock \
+		preempt_disable
+#define rcu_read_unlock \
+		preempt_enable
 \end{lstlisting}
 \caption{A simple implementation of RCU read side primitives}\label{fig:rcusimpleread}
 \end{figure}
 
 RCU is becoming increasingly relevant today with a userspace implementation also
-being released and used~\cite{urcu}.%cite urcu paper and the flocking using RCU paper
-~\cite{goulet:thesis},~\cite{urcu-crowd}
+being released and used~\cite{urcu}~\cite{goulet:thesis}~\cite{urcu-crowd}
 
 
