@@ -124,7 +124,7 @@ The above policy of managing and updating meta-information is only valid when re
 
 Shadow memory provides an efficient infrastructure for implementing watchpoint mechanism. In our approach of implementing shadow memory we split and reserve a part of address space as shadow memory. Shadow memory stores a large array of meta information type \emph{union alias\_meta}, the index of which is used for creating watchpoint address. Our approach of using shadow memory is efficient as we can directly access the corresponding watchpoint meta-information using shadow index. 
 
-\begin{figure*}[h]
+\begin{figure*}[htb]
 %\centering
 \begin{lstlisting}
 /* Thread-specific watchpoint meta information. */
