@@ -1,4 +1,7 @@
-As mentioned in Section~\ref{sec:back} usage of RCU requires a lot of care. One needs to follow many rules while writing code which uses RCU. Figures~\ref{fig:rcuderefbug} and~\ref{fig:rcuusebug} show some examples.
+Section~\ref{sec:back} mentions that usage of RCU requires a lot of care. 
+There are many rules that must be followed while writing code
+which uses RCU. Figures~\ref{fig:rcuderefbug} and~\ref{fig:rcuusebug} show
+some examples.
 
 \begin{figure}[h]
 \centering
@@ -35,13 +38,13 @@ f() {
 \end{figure}
 
 In figure~\ref{fig:rcuderefbug} a reference to q takes place directly without the use
-of \emph{rcu\_dereference()}. Since \emph{rcu\_dereference()} has not been used to
+of \emph{rcu\_dereference}. Since \emph{rcu\_dereference} has not been used to
 dereference q, the compiler barriers are not in place and therefore the compiler
 is free to aggresively speculate pointer values. This may lead to an undesirable
 result.
 
 In figure~\ref{fig:rcuusebug}, while p has been obtained with the
-use of \emph{rcu\_dereference()}, it is used (in the form of x) after the critical section
+use of \emph{rcu\_dereference}, it is used (in the form of x) after the critical section
 has been announced. As the end of a read critical section has been announced,
 RCU is now free to reclaim the reference that p may be pointing to. As a result
 when p is dereference in the next critical section, that can be a pointer to
@@ -60,8 +63,10 @@ while using RCU. For the purposes of this report, we shall name two rules.
 
 We shall call the bugs of the type represented in figure~\ref{fig:rcuderefbug} as \emph{Rule 1 violations}
 and those in figure~\ref{fig:rcuusebug} as \emph{Rule 2 violations}.
-This project aims to detect and report bugs of these two types. Detecting these bugs is extremely challenging. Due to the nature of RCU implementation,
-bugs are subtle and at times hard to reproduce. Even though the references have been illegaly obtained, they might still be valid.
+This project aims to detect and report bugs of these two types.
+Detecting these bugs is extremely challenging. Due to the nature of RCU implementation,
+bugs are subtle and at times hard to reproduce. An example is that it is possible for the
+references to be illegally obtained, but still be valid.
 
 In order to detect \emph{Rule 1 violations}, we must first identify data
 that has been protected by RCU. We must then be able to track every
