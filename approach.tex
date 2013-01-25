@@ -120,9 +120,10 @@ One important optimization in instrumentation is Flag Liveness analysis. We save
     \item \emph{Eliminate Stack Operations:} For x86 architecture, any operation on the stack or involving stack pointer is also considered as memory operation. Our system identify all these instructions involving operations on the stack and they are not required to be instrumented since we are not tracking or adding watchpoint on them.
 \end{itemize}
 
-\begin{figure}[ht!]
+\begin{figure}
 %
-\framebox{\begin{minipage}[t]{1.02\columnwidth}%
+%\framebox{
+\begin{minipage}[t]{1.02\columnwidth}%
 \vspace{-1em}
 \begin{codebox}
 \Procname{$\proc{Native-Memory-Operation}$}
@@ -140,7 +141,7 @@ One important optimization in instrumentation is Flag Liveness analysis. We save
 \li	cmp 	$\id{\%rdi 	->	\%rdi}$
 \li	je     	$\id{addr\_not\_watchpoint}$
 \li	popf
-\li 	$\proc{insert\_clean\_call}(\id{watch\_write}, \id{\%rdi}, \id{1})$
+\li 	$\proc{insert\_clean\_call}(\id{watch\_memory\_operation}, \id{\%rdi}, \id{1})$
 \li	mov    	$\id{\%rsi	->	[\%rdi]}$
 \li	pop	$\id{\%rdi}$
 \li	pop 	$\id{\%rcx}$
@@ -151,16 +152,45 @@ One important optimization in instrumentation is Flag Liveness analysis. We save
 \li	pop 	$\id{\%rcx}$
 \li  	mov 	$\id{\%rsi   	-> 	[\%rax, \%rbx]}$ 
 \li	LABEL:  $\id{done\_instrumenting}$
-\li  	nop	
+%\li  	nop	
 \end{codebox}%
-\end{minipage}}
+\end{minipage}
+%}
 
-\caption{Native and Instrumented memory write Operation\label{fig:mem-write}}
+\caption{Native and Instrumented code for memory Operation\label{fig:mem-write}}
 \vspace{-1em}
 \end{figure}
 
 %The optimization discussed above improved the performance of watchpoint significantly, but 
 Apart from the above, there is a scope of further optimization and one of them is using policy based instrumentation. Policy based instrumentation will only instruments the memory references when execution enters in RCU critical section and any access outside critical section is incorrect and will get trapped by the general protection fault. However this is a big optimization but we have not implemented this since it requires a mechanism of tagging basic block so that two version of basicblock exist in the codecache for same native code, which is currently not supported with Granary.
+
+\begin{figure}
+\begin{minipage}[t]{1.02\columnwidth}%
+\vspace{-1em}
+\begin{codebox}
+\Procname{$\proc{Watch-Memory-Operation}$}
+\li	push	$\id{\%rax}$
+\li	mov	$\id{\%rsp	->	\%rax}$
+\li	and	$-THREAD\_SIZE,\%rax 	-> \%rax$
+\li	push	$\id{\%rbx}$
+\li	mov	$\id{0x1	->	\%rbx}$
+\li 	and	$\id{[\%rax, 0x0], \%rbx	-> \%rbx}$
+\li	cmp	$\id{\%rbx, 0x1}$
+\li	je	$\id{illegal\_access}$
+\li	pop	$\id{\%rbx}$ 	
+\li	pop	$\id{\%rax}$
+\li	ret
+\li	LABEL: 	$\id{illegal\_access}$
+\li	pop	$\id{\%rbx}$ 	
+\li	pop	$\id{\%rax}$
+\li	ret
+\end{codebox}
+\end{minipage}
+%}
+
+\caption{A sample implementation of watch memory Operation\label{fig:mem-operation}}
+\vspace{-1em}
+\end{figure}
 
 
 \begin{figure*}[htb]
